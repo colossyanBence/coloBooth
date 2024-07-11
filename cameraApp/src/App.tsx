@@ -1,19 +1,36 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as faceLandmarksDetection from "@tensorflow-models/face-landmarks-detection";
 import * as faceMesh from "@mediapipe/face_mesh";
 import { TRIANGULATION } from "./triangulation.js";
 import { distance, drawPath, getCoordinate } from "./helpers.js";
 import { FaceDetector } from "@tensorflow-models/face-detection";
 import { GlassesImage } from "./glassesImage";
+import { FaceLandmarksDetector } from "@tensorflow-models/face-landmarks-detection";
 
 
 export const App = () => {
+  const dryRun = true; // no API call
+  
+  // Overlay switches
+  const showMask = true;
+  const showContour = false;
+  const showKeypoints = false;
+  const showTriangulation = false;
+  const showBoundingBox = false;
+  const showEyes = false;
+  const showImage = true;
+
+
   const image = new Image();
   image.src = GlassesImage;
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
-
+  const detector = useRef<FaceLandmarksDetector>(null);
+  const [isCountback, setIsCountback] = useState(false);
+  const [flash, setFlash] = useState(false);
+  const [displayCount, setDisplayCount] = useState(3);
+  const count = useRef(3);
   const initCam = () => {
     navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
       if (canvasRef.current) {
@@ -26,14 +43,10 @@ export const App = () => {
     });
   };
 
-  const render = (detector) => {
-    const showMask = true;
-    const showContour = false;
-    const showKeypoints = false;
-    const showTriangulation = false;
-    const showBoundingBox = false;
-    const showEyes = false;
-    const showImage = true;
+  //let lastTime = new Date(); // FPS calculation
+
+  const render = () => {
+    //const currentTime = new Date(); // FPS calculation
 
     if (canvasRef.current && videoRef.current) {
       const ctx = canvasRef.current.getContext("2d");
@@ -41,8 +54,8 @@ export const App = () => {
       if (ctx) {
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, 640, 480);
-        if (detector) {
-          detector
+        if (detector.current) {
+          detector.current
             .estimateFaces(videoRef.current, { flipHorizontal: false })
             .then((faces) => {
               faces.forEach((face) => {
@@ -142,7 +155,7 @@ export const App = () => {
                     ctx.fill();
                   }
                 }
-
+                
                 //DRAW TRIANGULATION
                 if (showTriangulation) {
                   ctx.strokeStyle = "green";
@@ -237,11 +250,16 @@ export const App = () => {
         if(showImage){
           ctx.drawImage(videoRef.current, 0, 0, 640, 480);
         }
+        // FPS calculation
+        // const fps = 1000 / (currentTime - lastTime);
+        // lastTime = currentTime;
+        // console.log(fps);
+        requestAnimationFrame(render);
       }
     }
   };
 
-  const initTensor = (cb: (detector: FaceDetector) => void) => {
+  const initTensor = (cb) => {
     faceLandmarksDetection
       .createDetector(
         faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
@@ -253,7 +271,8 @@ export const App = () => {
         }
       )
       .then((detectorInstance) => {
-        cb(detectorInstance);
+        detector.current = detectorInstance;
+        cb();
       });
   };
 
@@ -264,47 +283,92 @@ export const App = () => {
       imageRef.current.src = image;
 
       // Send to API
-      fetch("https://9e713737-7c73-49b4-bee4-45cc60028660.mock.pstmn.io", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          imgBase64: image,
-        }),
-      });
+      if(!dryRun){
+        fetch("https://9e713737-7c73-49b4-bee4-45cc60028660.mock.pstmn.io", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            imgBase64: image,
+          }),
+        });
+      }
     }
   };
+
+  const handleCountback = () => {
+    if(count.current > 0){
+      setTimeout(() => {
+        count.current = count.current - 1;
+        setDisplayCount(count.current);
+        handleCountback();
+      }, 1000);
+    } else {
+      count.current = 3;
+      setDisplayCount(3);
+      setIsCountback(false);
+      setFlash(true);
+      setTimeout(() => {
+        setFlash(false);
+      },100)
+      console.log("Take a picture!");
+      handleSaveImage();
+    }
+  
+  }
 
   useEffect(() => {
     initCam();
 
     const handlePlaying = () => {
-      initTensor((detector) => {
+      initTensor(() => {
         // Render loop
-        setInterval(() => render(detector), 1000 / 10); // 30fps // TODO: Should be requestAnimationFrame for optimal performance
+        requestAnimationFrame(render);
       });
     };
 
+    const handleKeyDown = (e) => {
+      if(e.code === "KeyA") {
+        console.log(imageRef.current?.src);
+        if(imageRef.current?.src && imageRef.current.src !== "http://empty/"){
+          imageRef.current.src = "http://empty/";
+        }
+        else {
+          setIsCountback(true);
+          handleCountback();
+        }
+      }
+    }
+
     videoRef.current?.addEventListener("playing", handlePlaying);
+    window.addEventListener("keydown", handleKeyDown);
     return () => {
       videoRef.current?.removeEventListener("playing", handlePlaying);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
 
   return (
-    <div>
-      <canvas id="output" ref={canvasRef}></canvas>
+    <div style={{scale: "1", transformOrigin: "top left",display:"inline-block",}}>
+      <canvas id="output" ref={canvasRef} style={{border: "2px solid red",}}></canvas>
       <video
         id="video"
         autoPlay
         ref={videoRef}
         style={{ display: "none" }}
       />
-      <img ref={imageRef} />
+      {isCountback && (
+        <div style={{position: "absolute", left: 0, top: 0, width: 640, height: 480, zIndex:2, display: "flex", alignItems: "center", justifyContent:"center", fontSize: "250px", color: "rgba(255,255,255,.7)", fontFamily: "sans-serif"}}>
+          {displayCount}
+        </div>
+      )}
+      <div style={{display: flash?"block":"none", position: "absolute", left: 0, top: 0, width: 640, height: 480, background :"white", zIndex:2,}}/>
+      <img ref={imageRef} style={{position: "absolute",left:0, top: 0, opacity: isCountback?0:1, border: '2px solid black'}} alt=""/>
       
       <div>
-        <button onClick={handleSaveImage}>Save image</button>
+        {/* <button onClick={handleSaveImage}>Take photo</button> */}
+        <p>(Re)Start countdown with key "a"</p>
       </div>
     </div>
   );

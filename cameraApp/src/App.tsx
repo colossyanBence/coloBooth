@@ -9,7 +9,7 @@ import { FaceLandmarksDetector } from "@tensorflow-models/face-landmarks-detecti
 
 
 export const App = () => {
-  const dryRun = true; // no API call
+  const dryRun = false; // no API call
   
   // Overlay switches
   const showMask = true;
@@ -313,7 +313,7 @@ export const App = () => {
 
       // Send to API
       if(!dryRun){
-        fetch("https://9e713737-7c73-49b4-bee4-45cc60028660.mock.pstmn.io", {
+        fetch("http://localhost:8000/upload", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -321,6 +321,13 @@ export const App = () => {
           body: JSON.stringify({
             imgBase64: image,
           }),
+        })
+        .then((res) => {return res.json()})
+        .then((json) => {
+          console.log("Uploaded.");
+          console.log(`http://localhost:8000/upload/${json.file}`);
+        }).catch(() => {
+          console.log("Upload failed.");
         });
       }
     }
@@ -359,7 +366,6 @@ export const App = () => {
 
     const handleKeyDown = (e) => {
       if(e.code === "KeyA") {
-        console.log(imageRef.current?.src);
         if(imageRef.current?.src && imageRef.current.src !== "http://empty/"){
           imageRef.current.src = "http://empty/";
         }

@@ -15,7 +15,7 @@ export const App = () => {
   const showMask = true;
   const showContour = false;
   const showKeypoints = false;
-  const showTriangulation = false;
+  const showTriangulation = true;
   const showBoundingBox = false;
   const showEyes = false;
   const showImage = true;
@@ -43,6 +43,74 @@ export const App = () => {
     });
   };
 
+  const getVars =(canvasCtx, landmarks) => {
+    let canvas = canvasCtx.canvas;
+    let xpos = landmarks[1].x;
+    let ypos = landmarks[1].y;
+    //let img = new Image;
+    return {canvas, xpos, ypos};
+  }
+
+  const distance = (pos1, pos2) => {
+    // get ratio of video element since x and y coordinates are given assuming square element
+    let aspectRatio = 640/480;
+
+    return Math.sqrt(
+      (pos1.x - pos2.x) ** 2 * aspectRatio + 
+      (pos1.y - pos2.y) ** 2 / aspectRatio +
+      (pos1.z - pos2.z) ** 2
+    );
+  }
+
+  const calculateSkew = (landmarks) => {
+    
+    //use 0 for middle, 359 for top right, and 130 for top left.
+    const leftEyeCorner = landmarks[249];//130
+    const rightEyeCorner = landmarks[7];//359
+    const upperLip = landmarks[0];
+    
+    //midpoint between eye landmarks
+    const eyeMidPoint = {
+      x: (rightEyeCorner.x + leftEyeCorner.x)/2,
+      y: (rightEyeCorner.y + leftEyeCorner.y)/2,
+      z: (rightEyeCorner.z + leftEyeCorner.z)/2
+    };
+
+    //calculate angle in radians between eye connector and x-axis
+    const roll = Math.atan2(
+      (rightEyeCorner.y - leftEyeCorner.y),
+      (rightEyeCorner.x - leftEyeCorner.x)
+    );
+                           
+    //get frame of reference to display slopes
+    const originPoint = {
+      x: upperLip.x,
+      y: eyeMidPoint.y,
+      z: upperLip.z
+    };
+    //calculate angle between face slope and y-axis
+    const pitch = Math.atan2(
+      (eyeMidPoint.z - upperLip.z),
+      (eyeMidPoint.y - upperLip.y) 
+    );
+
+    //calculate angle between (eyeMid -> upperlip) and z-axis
+    const yaw = Math.atan2(
+      (eyeMidPoint.z - upperLip.z),
+      (eyeMidPoint.x - upperLip.x) 
+    );
+
+    const scale = distance(rightEyeCorner, leftEyeCorner);
+
+    //draw lines beteen key points.
+  /*   drawConnectors(canvasCtx,
+      {0: leftEyeCorner, 1: rightEyeCorner, 2: upperLip, 3: eyeMidPoint, 4: originPoint},
+      [[0,1],[2,3],[2,4]],
+      {color: 'red', lineWidth: 1}) */
+
+    return {roll: roll, scale: scale}
+  }
+
   //let lastTime = new Date(); // FPS calculation
 
   const render = () => {
@@ -68,60 +136,21 @@ export const App = () => {
 
                 // DRAW MASK
                 if (showMask) {
-                  const partName = [
-                    "overhead",
-                    "rightCheek",
-                    "chin",
-                    "leftCheek",
-                  ];
-                  const overheadIndex = 0;
-                  const chinIndex = 2;
-                  const leftCheekIndex = 3;
-                  const rightCheekIndex = 1;
-                  const dots = [];
-                  const maskKeyPointIndexs = [10, 234, 152, 454];
+                  const mutations = calculateSkew(face.keypoints);
+                  const {canvas, xpos, ypos} = getVars(ctx, face.keypoints);
+                  
+                  const dim = canvas.width * mutations.scale * .003;
 
-                  for (let i = 0; i < maskKeyPointIndexs.length; i++) {
-                    const coordinate = getCoordinate(
-                      canvasRef.current,
-                      keypoints[maskKeyPointIndexs[i]][0],
-                      keypoints[maskKeyPointIndexs[i]][1]
-                    );
-                    const dot = [coordinate[0], coordinate[1]];
-                    dots.push(dot);
-                  }
+                  ctx.beginPath();
+                  ctx.fillStyle = "red";
+                  ctx.arc(xpos, ypos, 10, 0, 2 * Math.PI);
+                  ctx.fill();
 
-                  const maskCoordinate = [
-                    dots[rightCheekIndex][0],
-                    dots[overheadIndex][1],
-                  ];
-
-                  const maskHeight =
-                    dots[chinIndex][1] - dots[overheadIndex][1];
-                  const maskWidth =
-                    dots[leftCheekIndex][0] - dots[rightCheekIndex][0];
-
-                  ctx.fillStyle = "green";
-                  dots.forEach((dot, i) => {
-                    ctx.beginPath();
-                    ctx.arc(dot[0], dot[1], 2, 0, 2 * Math.PI);
-                    ctx.fill();
-                    ctx.fillText(
-                      `(${Math.floor(dot[0])}, ${Math.floor(dot[1])}) - ${
-                        partName[i]
-                      }`,
-                      dot[0],
-                      dot[1] - 10
-                    );
-                  });
-
-                  ctx.drawImage(
-                    image,
-                    maskCoordinate[0],
-                    maskCoordinate[1] + 20,
-                    maskWidth,
-                    100
-                  );
+                  ctx.save();
+                  ctx.translate(xpos, ypos);
+                  ctx.rotate(mutations.roll + 3.14);
+                  ctx.drawImage(image, -(dim/2), -(dim/2)+40, dim, 90);
+                  ctx.restore();
                 }
 
                 // DRAW CONTOURS

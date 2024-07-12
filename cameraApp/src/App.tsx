@@ -317,6 +317,7 @@ export const App = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjb2xvYm9vdGhDYW1lcmFBcHAiLCJpYXQiOjE1MTYyMzkwMjIsIm1lc3NhZ2UiOiJ0aGFua3MgZm9yIGNoZWNraW5nIG91dCB0aGUgY29kZSJ9.zdV6jAh5GZhtUmonovWfNPQd7MSp7nfeECkWP9J2AO0"
           },
           body: JSON.stringify({
             imgBase64: image,

@@ -2,13 +2,14 @@ import { getFiles } from '../handlers/getFiles';
 import { fileUpload } from '../handlers/fileupload';
 import { healthCheck } from '../handlers/healthcheck';
 import express from 'express';
+import { validateJWT } from '../helpers/jwtValidator';
 
 const router = express.Router();
 
-router.get('/', healthCheck);
+router.get('/', validateJWT, healthCheck);
 
-router.post('/upload', fileUpload);
+router.post('/upload', validateJWT, fileUpload);
 
-router.get('/files', getFiles);
+router.get('/files', validateJWT, getFiles);
 
 export default router;

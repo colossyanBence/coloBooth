@@ -14,11 +14,14 @@ import router from './routes/index';
 const app: express.Application = express();
 
 app.use(httpLogger);
-app.use(express.json());
+app.use(express.json({limit: '5mb'}));
+
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(cors({ origin: '*' }));
-app.use('/upload', express.static("upload"));
+const oneHour = 360000000;
+app.use('/upload', express.static("upload", { maxAge: oneHour, cacheControl: true, immutable: true }));
+app.use('/preview', express.static("static"));
 app.use('/', router);
 
 // catch 404 and forward to error handler

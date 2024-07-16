@@ -4,25 +4,28 @@ import * as faceMesh from "@mediapipe/face_mesh";
 import { TRIANGULATION } from "./triangulation.js";
 import { distance, drawPath, getCoordinate } from "./helpers.js";
 import { FaceDetector } from "@tensorflow-models/face-detection";
-import { GlassesImage } from "./glassesImage";
 import { FaceLandmarksDetector } from "@tensorflow-models/face-landmarks-detection";
 
 
 export const App = () => {
+  const CAM_RES_WIDTH = 1280;
+  const CAM_RES_HEIGHT = 720;
+  const SCREEN_WIDTH = 1280;
+  const SCREEN_HEIGHT = 720;
   const dryRun = false; // no API call
   
   // Overlay switches
-  const showMask = true;
+  const showMask = false;
+  const showRedNose = true;
   const showContour = false;
   const showKeypoints = false;
   const showTriangulation = true;
   const showBoundingBox = false;
   const showEyes = false;
   const showImage = true;
+  const showWatermark = true;
+  const showActor = true;
 
-
-  const image = new Image();
-  image.src = GlassesImage;
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -31,11 +34,35 @@ export const App = () => {
   const [flash, setFlash] = useState(false);
   const [displayCount, setDisplayCount] = useState(3);
   const count = useRef(3);
+
+  const [imagesLoaded, setImagesLoaded] = useState(false);
+  const loadedImagesRef = useRef<HTMLImageElement[]>([]);
+
+  const imagesToLoad = [
+    'glasses.png',
+    'logo.svg',
+    'ryan.png'
+  ];
+
+  const preloadImages = (srcArray) => {
+    return Promise.all(
+      srcArray.map((src) => {
+        return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.src = src;
+          console.log(src);
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error('Failed to load image'));
+        });
+      })
+    );
+  };
+
   const initCam = () => {
-    navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+    navigator.mediaDevices.getUserMedia({ video: { width: CAM_RES_WIDTH, height: CAM_RES_HEIGHT }}).then((stream) => {
       if (canvasRef.current) {
-        canvasRef.current.width = 640;
-        canvasRef.current.height = 480;
+        canvasRef.current.width = SCREEN_WIDTH;
+        canvasRef.current.height = SCREEN_HEIGHT;
       }
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -43,7 +70,7 @@ export const App = () => {
     });
   };
 
-  const getVars =(canvasCtx, landmarks) => {
+  const getVars = (canvasCtx, landmarks) => {
     let canvas = canvasCtx.canvas;
     let xpos = landmarks[1].x;
     let ypos = landmarks[1].y;
@@ -53,7 +80,7 @@ export const App = () => {
 
   const distance = (pos1, pos2) => {
     // get ratio of video element since x and y coordinates are given assuming square element
-    let aspectRatio = 640/480;
+    let aspectRatio = SCREEN_WIDTH/SCREEN_HEIGHT;
 
     return Math.sqrt(
       (pos1.x - pos2.x) ** 2 * aspectRatio + 
@@ -116,12 +143,22 @@ export const App = () => {
   const render = () => {
     //const currentTime = new Date(); // FPS calculation
 
+    // const [glassesImg, watermarkImg] = imagesToLoad.map(src => {
+    //   const img = new Image();
+    //   img.src = src;
+    //   return img;
+    // });
+
+    const [glassesImg, watermarkImg, ryanImg] = loadedImagesRef.current;
+
     if (canvasRef.current && videoRef.current) {
       const ctx = canvasRef.current.getContext("2d");
 
       if (ctx) {
+        // Clear canvas
         ctx.fillStyle = "white";
-        ctx.fillRect(0, 0, 640, 480);
+        ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
         if (detector.current) {
           detector.current
             .estimateFaces(videoRef.current, { flipHorizontal: false })
@@ -133,7 +170,7 @@ export const App = () => {
                 ]);
                 const NUM_KEYPOINTS = 468;
                 const NUM_IRIS_KEYPOINTS = 5;
-
+                
                 // DRAW MASK
                 if (showMask) {
                   const mutations = calculateSkew(face.keypoints);
@@ -141,16 +178,12 @@ export const App = () => {
                   
                   const dim = canvas.width * mutations.scale * .003;
 
-                  ctx.beginPath();
-                  ctx.fillStyle = "red";
-                  ctx.arc(xpos, ypos, 10, 0, 2 * Math.PI);
-                  ctx.fill();
-
                   ctx.save();
                   ctx.translate(xpos, ypos);
                   ctx.rotate(mutations.roll + 3.14);
-                  ctx.drawImage(image, -(dim/2), -(dim/2)+40, dim, 90);
+                  ctx.drawImage(glassesImg, -(dim/2), -(dim/2)+40, dim, 90);
                   ctx.restore();
+
                 }
 
                 // DRAW CONTOURS
@@ -218,6 +251,15 @@ export const App = () => {
                   );
                 }
 
+                if(showRedNose){
+                  const {xpos, ypos} = getVars(ctx, face.keypoints);
+
+                  ctx.beginPath();
+                  ctx.fillStyle = "red";
+                  ctx.arc(xpos, ypos, 10, 0, 2 * Math.PI);
+                  ctx.fill();
+                }
+
                 // DRAW EYES
                 if (showEyes) {
                   if (keypoints.length > NUM_KEYPOINTS) {
@@ -277,8 +319,23 @@ export const App = () => {
 
         // DRAW CAMERA IMAGE TO CANVAS
         if(showImage){
-          ctx.drawImage(videoRef.current, 0, 0, 640, 480);
+          // Flip image
+          //ctx.save();
+          //ctx.scale(-1, 1);
+          ctx.drawImage(videoRef.current, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);//*-1, 480);
+          //ctx.restore();
         }
+
+        // SHOW ACTOR
+        if(showActor) {
+          ctx.drawImage(ryanImg, SCREEN_WIDTH*0.55, 0, SCREEN_WIDTH*0.55, SCREEN_HEIGHT);
+        }
+
+        // SHOW WATERMARK
+        if(showWatermark) {
+          ctx.drawImage(watermarkImg, SCREEN_WIDTH-230, 10, 220, 50);
+        }    
+
         // FPS calculation
         // const fps = 1000 / (currentTime - lastTime);
         // lastTime = currentTime;
@@ -357,38 +414,53 @@ export const App = () => {
   }
 
   useEffect(() => {
-    initCam();
+    preloadImages(imagesToLoad).then((images) => {
+      loadedImagesRef.current = images;
+      setImagesLoaded(true);
+    });
+  }, [imagesToLoad]);
 
-    const handlePlaying = () => {
-      initTensor(() => {
-        // Render loop
-        requestAnimationFrame(render);
-      });
-    };
 
-    const handleKeyDown = (e) => {
-      if(e.code === "KeyA") {
-        if(imageRef.current?.src && imageRef.current.src !== "http://empty/"){
-          imageRef.current.src = "http://empty/";
-        }
-        else {
-          setIsCountback(true);
-          handleCountback();
+  useEffect(() => {
+    if(imagesLoaded){
+      // Start camera after images are loaded
+      initCam();
+
+      const handlePlaying = () => {
+        initTensor(() => {
+          // Render loop
+          requestAnimationFrame(render);
+        });
+      };
+
+      const handleKeyDown = (e) => {
+        if(e.code === "KeyA") {
+          if(imageRef.current?.src && imageRef.current.src !== "http://empty/"){
+            imageRef.current.src = "http://empty/";
+          }
+          else {
+            setIsCountback(true);
+            handleCountback();
+          }
         }
       }
-    }
 
-    videoRef.current?.addEventListener("playing", handlePlaying);
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      videoRef.current?.removeEventListener("playing", handlePlaying);
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
+      videoRef.current?.addEventListener("playing", handlePlaying);
+    //   videoRef.current?.addEventListener( "loadedmetadata", (e)=> {
+    //     console.log(videoRef.current.videoWidth, e);
+    // }, false );
+    
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        videoRef.current?.removeEventListener("playing", handlePlaying);
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+  }, [imagesLoaded]);
 
   return (
-    <div style={{scale: "1", transformOrigin: "top left",display:"inline-block",}}>
-      <canvas id="output" ref={canvasRef} style={{border: "2px solid red",}}></canvas>
+    <div style={{position: "relative", scale: "1", transformOrigin: "top left",display:"flex", width: "100vw"}}>
+      <canvas id="output" ref={canvasRef} style={{width: 'calc(100vw - 20px)'}}></canvas>
       <video
         id="video"
         autoPlay
@@ -396,17 +468,12 @@ export const App = () => {
         style={{ display: "none" }}
       />
       {isCountback && (
-        <div style={{position: "absolute", left: 0, top: 0, width: 640, height: 480, zIndex:2, display: "flex", alignItems: "center", justifyContent:"center", fontSize: "250px", color: "rgba(255,255,255,.7)", fontFamily: "sans-serif"}}>
+        <div style={{position: "absolute", left: 0, top: 0, width: 'calc(100vw - 20px)', height: "calc(100vh)", zIndex:2, display: "flex", alignItems: "center", justifyContent:"center", fontSize: "300px", color: "rgba(255,255,255,.7)", fontFamily: "sans-serif"}}>
           {displayCount}
         </div>
-      )}
-      <div style={{display: flash?"block":"none", position: "absolute", left: 0, top: 0, width: 640, height: 480, background :"white", zIndex:2,}}/>
-      <img ref={imageRef} style={{position: "absolute",left:0, top: 0, opacity: isCountback?0:1, border: '2px solid black'}} alt=""/>
-      
-      <div>
-        {/* <button onClick={handleSaveImage}>Take photo</button> */}
-        <p>(Re)Start countdown with key "a"</p>
-      </div>
+      )}      
+      <div style={{display: flash ? "block":"none", position: "absolute", left: 0, top: 0, width: 'calc(100vw - 20px)', height: '100vh', background :"white", zIndex:2,}}/>
+      <img ref={imageRef} style={{position: "absolute",left:0, top: 0, width: "calc(100vw - 20px)", opacity: isCountback?0:1, border: '2px solid black'}} alt=""/>
     </div>
   );
 };

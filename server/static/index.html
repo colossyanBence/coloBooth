@@ -8,14 +8,20 @@
     /* css grid masonry every second column 10 px lower */
     .list {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+      grid-template-columns: repeat(4, 1fr);
       grid-gap: 10px;
+      grid-template-rows: masonry;
     }
 
     img {
       width: 400px;
       width: 100%;
-      aspect-ratio: 4/3;
+      aspect-ratio: 16/9;
+    }
+
+    img:first-child {
+      grid-column: 1 / span 2;
+      grid-row: 1 / span 2;
     }
   </style>
 </head>
@@ -49,6 +55,7 @@
         });
     }
     setInterval(()=>{init()}, 5000);
+    init();
   </script>
 </body>
 </html>

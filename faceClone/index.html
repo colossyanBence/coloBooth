@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>TensorFlow.js + WebGL Example</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.4.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm@2.4.0/dist/tf-backend-wasm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@0.0.1"></script>
+    <script type="text/javascript" src="util_shader.js"></script>
+    <script type="text/javascript" src="util_matrix.js"></script>
+    <script type="text/javascript" src="util_texture.js"></script>
+    <script type="text/javascript" src="util_render2d.js"></script>
+    <script type="text/javascript" src="render_facemesh.js"></script>
+    <script type="text/javascript" src="webgl_main.js"></script>
+</head>
+<body onload="startWebGL();">
+    <canvas id="glcanvas" width="800" height="800"></canvas>
+</body>
+</html>

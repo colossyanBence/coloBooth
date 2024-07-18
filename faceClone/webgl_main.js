@@ -119,7 +119,12 @@ function startWebGL() {
     gl.clear (gl.COLOR_BUFFER_BIT);
     const camtex = GLUtil.create_camera_texture(gl);
 
-    let masktex = GLUtil.create_image_texture2(gl, "./ryan-face.png");
+    let masktex = GLUtil.create_image_texture2(gl, "./face-ryan.png");
+    // let masktex = GLUtil.create_image_texture2(gl, "./face-harold.png");
+    // let masktex = GLUtil.create_image_texture2(gl, "./face-domi.png");
+    // let masktex = GLUtil.create_image_texture2(gl, "./face-luke.png");
+    // let masktex = GLUtil.create_image_texture2(gl, "./face-nina.png");
+    // let masktex = GLUtil.create_image_texture2(gl, "./face-lisa.png");
     let mask_predictions = {length: 0};
     let mask_init_done = false;
 

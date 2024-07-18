@@ -12,7 +12,36 @@
     <script type="text/javascript" src="render_facemesh.js"></script>
     <script type="text/javascript" src="webgl_main.js"></script>
 </head>
-<body onload="startWebGL();">
-    <canvas id="glcanvas" width="800" height="800"></canvas>
+<body onload="startWebGL();" onkeydown="handleKeyDown(event)">
+    <canvas id="glcanvas" width="1280" height="720"></canvas>
+
+    <script>
+        const handleKeyDown = (e) => {
+            console.log(e.code);
+            if(e.code === "Enter") {
+                const canvas = document.getElementById("glcanvas");
+                const image = canvas.toDataURL("image/jpeg");
+
+                fetch("http://localhost:8000/upload", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        // Very lightweight "security", hardcoded JWT, just to filter out random robots calling the API
+                        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjb2xvYm9vdGhDYW1lcmFBcHAiLCJpYXQiOjE1MTYyMzkwMjIsIm1lc3NhZ2UiOiJ0aGFua3MgZm9yIGNoZWNraW5nIG91dCB0aGUgY29kZSJ9.zdV6jAh5GZhtUmonovWfNPQd7MSp7nfeECkWP9J2AO0"
+                    },
+                    body: JSON.stringify({
+                        imgBase64: image,
+                    }),
+                })
+                .then((res) => {return res.json()})
+                .then((json) => {
+                    console.log("Uploaded.");
+                    console.log(`http://localhost:8000/upload/${json.file}`);
+                }).catch(() => {
+                    console.log("Upload failed.");
+                });
+            }
+        }
+    </script>
 </body>
 </html>

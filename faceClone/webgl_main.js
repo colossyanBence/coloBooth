@@ -113,7 +113,7 @@ function startWebGL() {
     let current_phase = 0;
 
     const canvas = document.querySelector('#glcanvas');
-    const gl = canvas.getContext('webgl');
+    const gl = canvas.getContext('webgl', {preserveDrawingBuffer: true});
 
     gl.clearColor (0.7, 0.7, 0.7, 1.0);
     gl.clear (gl.COLOR_BUFFER_BIT);
@@ -197,7 +197,9 @@ function startWebGL() {
         /* --------------------------------------- *
          *  render scene
          * --------------------------------------- */
-        gl.clear (gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        
+        // TODO: I commented the clear out, ugly hack not to clear canvas so I can take a screenshot in a wrong way instead of getting it through the render function
+        //gl.clear (gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         render_2d_scene (gl, texid, face_predictions, src_w, src_h, masktex, mask_predictions);
         requestAnimationFrame (render);
     }

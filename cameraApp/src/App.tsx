@@ -434,7 +434,7 @@ export const App = () => {
       };
 
       const handleKeyDown = (e) => {
-        if(e.code === "KeyA") {
+        if(e.code === "Enter") {
           if(imageRef.current?.src && imageRef.current.src !== "http://empty/"){
             imageRef.current.src = "http://empty/";
           }
